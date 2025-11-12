@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="apply-index-items-name" author="your-name">
+        <createIndex indexName="idx_items_name" tableName="items">
+            <column name="name"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="apply-index-orders-user-id" author="your-name">
+        <createIndex indexName="idx_orders_user_id" tableName="orders">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="apply-index-orders-status" author="your-name">
+        <createIndex indexName="idx_orders_status" tableName="orders">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="apply-index-order-items-order-id" author="your-name">
+        <createIndex indexName="idx_order_items_order_id" tableName="order_items">
+            <column name="order_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="apply-index-order-items-item-id" author="your-name">
+        <createIndex indexName="idx_order_items_item_id" tableName="order_items">
+            <column name="item_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
