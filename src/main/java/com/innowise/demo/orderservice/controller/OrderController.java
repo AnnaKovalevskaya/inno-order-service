@@ -4,6 +4,7 @@ import com.innowise.demo.orderservice.dto.OrderDto;
 import com.innowise.demo.orderservice.service.OrderService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,14 +19,18 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<OrderDto> createOrder(@Valid @RequestBody OrderDto orderDto) {
-        OrderDto created = orderService.createOrder(orderDto);
-        return ResponseEntity.ok(created);
+        try {
+            OrderDto created = orderService.createOrder(orderDto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<OrderDto> getOrderById(@PathVariable Long id) {
         return orderService.getOrderById(id)
-                .map(ResponseEntity::ok)
+                .map(orderDto -> ResponseEntity.ok(orderDto))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -53,7 +58,11 @@ public class OrderController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrderById(@PathVariable Long id) {
-        orderService.deleteOrderById(id);
-        return ResponseEntity.noContent().build();
+        try {
+            orderService.deleteOrderById(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
