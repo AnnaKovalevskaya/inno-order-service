@@ -13,7 +13,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
-
     @Autowired
     private OrderService orderService;
 
@@ -52,7 +51,10 @@ public class OrderController {
             OrderDto updated = orderService.updateOrder(id, orderDto);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            if (e.getMessage().contains("not found")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.badRequest().build();
         }
     }
 

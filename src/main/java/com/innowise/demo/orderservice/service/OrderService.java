@@ -90,8 +90,9 @@ public class OrderService {
 
     @Transactional
     public OrderDto updateOrder(Long id, OrderDto orderDto) {
-        if (orderRepository.existsById(id)) {
+        logger.info("Updating order with ID: {}", id);
 
+        if (orderRepository.existsById(id)) {
             if (orderDto.getOrderItems() != null) {
                 for (var orderItemDto : orderDto.getOrderItems()) {
                     if (orderItemDto.getItem() == null || !itemRepository.existsById(orderItemDto.getItem().getId())) {
