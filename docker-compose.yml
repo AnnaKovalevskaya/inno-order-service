@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: order-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - order-network
+
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: order-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+    ports:
+      - "${SERVER_PORT}:8083"
+    depends_on:
+      - postgres
+    networks:
+      - order-network
+
+volumes:
+  postgres_data:
+
+networks:
+  order-network:
+    driver: bridge
