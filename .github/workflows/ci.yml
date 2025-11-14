@@ -16,8 +16,20 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Build
-        run: mvn clean compile
+          cache: maven
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build with retry
+        run: |
+          for i in {1..3}; do
+            mvn clean compile && break
+            echo "Build attempt $i failed, retrying..."
+            sleep 10
+          done
 
   test:
     runs-on: ubuntu-latest
@@ -29,8 +41,20 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Test
-        run: mvn test
+          cache: maven
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Test with retry
+        run: |
+          for i in {1..3}; do
+            mvn test && break
+            echo "Test attempt $i failed, retrying..."
+            sleep 10
+          done
 
   sonarqube:
     name: SonarQube
@@ -45,6 +69,7 @@ jobs:
         with:
           java-version: 17
           distribution: 'zulu'
+          cache: maven
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
@@ -57,10 +82,15 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-      - name: Build and analyze
+      - name: Build and analyze with retry
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=AnnaKovalevskaya_inno-order-service
+        run: |
+          for i in {1..3}; do
+            mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=AnnaKovalevskaya_inno-order-service && break
+            echo "Sonar analysis attempt $i failed, retrying..."
+            sleep 10
+          done
 
   artifact:
     runs-on: ubuntu-latest
@@ -73,8 +103,20 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Build JAR
-        run: mvn package -DskipTests
+          cache: maven
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build JAR with retry
+        run: |
+          for i in {1..3}; do
+            mvn package -DskipTests && break
+            echo "Package attempt $i failed, retrying..."
+            sleep 10
+          done
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
