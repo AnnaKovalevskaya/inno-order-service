@@ -2,6 +2,7 @@ package com.innowise.demo.orderservice.service;
 
 import com.innowise.demo.orderservice.dto.OrderDto;
 import com.innowise.demo.orderservice.entity.Order;
+import com.innowise.demo.orderservice.kafka.OrderKafkaProducer;
 import com.innowise.demo.orderservice.mapper.OrderMapper;
 import com.innowise.demo.orderservice.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ class OrderServiceTest {
     @Mock
     private WebClient.ResponseSpec responseSpec;
 
+    @Mock
+    private OrderKafkaProducer orderKafkaProducer;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -60,8 +64,11 @@ class OrderServiceTest {
         orderDto.setStatus("PENDING");
 
         Order order = new Order();
+        order.setUserId(1L);
+
         Order savedOrder = new Order();
         savedOrder.setId(1L);
+        savedOrder.setUserId(1L);
 
         when(orderMapper.toEntity(orderDto)).thenReturn(order);
         when(orderRepository.save(order)).thenReturn(savedOrder);
@@ -72,6 +79,7 @@ class OrderServiceTest {
         assertNotNull(result);
         verify(orderRepository).save(order);
         verify(webClient).get();
+        verify(orderKafkaProducer).sendOrderEvent(any());
     }
 
     @Test
@@ -213,8 +221,11 @@ class OrderServiceTest {
         orderDto.setStatus("PENDING");
 
         Order order = new Order();
+        order.setUserId(1L);
+
         Order savedOrder = new Order();
         savedOrder.setId(1L);
+        savedOrder.setUserId(1L);
 
         when(orderMapper.toEntity(orderDto)).thenReturn(order);
         when(orderRepository.save(order)).thenReturn(savedOrder);
@@ -224,5 +235,6 @@ class OrderServiceTest {
 
         verify(webClient).get();
         verify(requestHeadersUriSpec).uri("/users?email={email}", "test@example.com");
+        verify(orderKafkaProducer).sendOrderEvent(any());
     }
 }

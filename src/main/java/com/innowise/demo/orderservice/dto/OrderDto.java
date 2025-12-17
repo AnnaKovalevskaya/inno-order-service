@@ -1,7 +1,9 @@
 package com.innowise.demo.orderservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,6 +30,8 @@ public class OrderDto {
 
     private LocalDateTime creationDate;
 
+    @NotEmpty(message = "Order must contain at least one item")
+    @Size(min = 1, message = "Order must contain at least one item")
     private List<OrderItemDto> orderItems;
 
     private Object userInfo;

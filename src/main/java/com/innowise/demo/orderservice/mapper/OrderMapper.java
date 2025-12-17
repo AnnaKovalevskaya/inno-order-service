@@ -7,7 +7,6 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring", uses = {OrderItemMapper.class})
 public interface OrderMapper {
-    @Mapping(target = "userEmail", ignore = true)
     @Mapping(target = "userInfo", ignore = true)
     OrderDto toDto(Order entity);
 

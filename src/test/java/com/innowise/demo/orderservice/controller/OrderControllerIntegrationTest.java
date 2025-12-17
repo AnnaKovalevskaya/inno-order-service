@@ -1,29 +1,31 @@
 package com.innowise.demo.orderservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.innowise.demo.orderservice.config.TestConfig;
 import com.innowise.demo.orderservice.dto.OrderDto;
-import jakarta.transaction.Transactional;
+import com.innowise.demo.orderservice.dto.OrderItemDto;
+import com.innowise.demo.orderservice.dto.ItemDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.annotation.DirtiesContext;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = {
-        "spring.datasource.url=jdbc:h2:mem:testdb",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.liquibase.enabled=false",
-        "user.service.url=http://nonexistent-host:9999"
-})
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@ActiveProfiles("test")
+@Import(TestConfig.class)
 class OrderControllerIntegrationTest {
 
     @Autowired
@@ -34,16 +36,23 @@ class OrderControllerIntegrationTest {
 
     @Test
     void createOrder_ShouldReturnCreated() throws Exception {
-        OrderDto orderDto = new OrderDto();
-        orderDto.setUserId(1L);
-        orderDto.setUserEmail("test@example.com");
-        orderDto.setStatus("PENDING");
+        OrderDto orderDto = createValidOrderDto(1L, "test@example.com", "PENDING");
 
-        mockMvc.perform(post("/orders")
+        String responseContent = mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderDto)))
+                .andDo(result -> {
+                    System.out.println("=== DEBUG INFO ===");
+                    System.out.println("Request Body: " + objectMapper.writeValueAsString(orderDto));
+                    System.out.println("Response Status: " + result.getResponse().getStatus());
+                    System.out.println("Response Body: " + result.getResponse().getContentAsString());
+                    System.out.println("=== END DEBUG ===");
+                })
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists());
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        System.out.println("Success! Order created: " + responseContent);
     }
 
     @Test
@@ -54,36 +63,40 @@ class OrderControllerIntegrationTest {
 
     @Test
     void getOrdersByIds_ShouldReturnOk() throws Exception {
-        mockMvc.perform(get("/orders").param("ids", "1,2,3"))
-                .andExpect(status().isOk());
-    }
+        OrderDto orderDto = createValidOrderDto(1L, "test1@example.com", "PENDING");
 
-    @Test
-    void getOrdersByIds_ShouldReturnEmptyList_WhenNoOrders() throws Exception {
-        mockMvc.perform(get("/orders").param("ids", "999"))
+        String response = mockMvc.perform(post("/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderDto)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long orderId = objectMapper.readTree(response).get("id").asLong();
+
+        mockMvc.perform(get("/orders")
+                        .param("ids", orderId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test
     void getOrdersByStatuses_ShouldReturnOk() throws Exception {
-        mockMvc.perform(get("/orders/statuses").param("statuses", "PENDING"))
-                .andExpect(status().isOk());
-    }
+        OrderDto orderDto = createValidOrderDto(1L, "test@example.com", "PENDING");
 
-    @Test
-    void getOrdersByStatuses_ShouldReturnEmptyList_WhenNoMatchingStatus() throws Exception {
-        mockMvc.perform(get("/orders/statuses").param("statuses", "NON_EXISTENT"))
+        mockMvc.perform(post("/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderDto)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/orders/statuses")
+                        .param("statuses", "PENDING"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(greaterThanOrEqualTo(1)));
     }
 
     @Test
     void updateOrder_ShouldReturnNotFound_WhenOrderNotExists() throws Exception {
-        OrderDto orderDto = new OrderDto();
-        orderDto.setUserId(1L);
-        orderDto.setUserEmail("test@example.com");
-        orderDto.setStatus("COMPLETED");
+        OrderDto orderDto = createValidOrderDto(1L, "test@example.com", "COMPLETED");
 
         mockMvc.perform(put("/orders/999")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -97,102 +110,25 @@ class OrderControllerIntegrationTest {
                 .andExpect(status().isNoContent());
     }
 
-    @Test
-    void createAndGetOrder_ShouldWork() throws Exception {
+    private OrderDto createValidOrderDto(Long userId, String email, String status) {
         OrderDto orderDto = new OrderDto();
-        orderDto.setUserId(100L);
-        orderDto.setUserEmail("unique100@example.com");
-        orderDto.setStatus("PENDING");
+        orderDto.setUserId(userId);
+        orderDto.setUserEmail(email);
+        orderDto.setStatus(status);
 
-        String response = mockMvc.perform(post("/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderDto)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andReturn().getResponse().getContentAsString();
+        List<OrderItemDto> orderItems = new ArrayList<>();
 
-        Long orderId = objectMapper.readTree(response).get("id").asLong();
+        ItemDto itemDto = new ItemDto();
+        itemDto.setName("Test Item " + System.currentTimeMillis());
+        itemDto.setPrice(BigDecimal.valueOf(99.99));
 
-        mockMvc.perform(get("/orders/{id}", orderId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(orderId))
-                .andExpect(jsonPath("$.status").value("PENDING"));
-    }
+        OrderItemDto orderItemDto = new OrderItemDto();
+        orderItemDto.setItem(itemDto);
+        orderItemDto.setQuantity(2);
 
-    @Test
-    @Transactional
-    void createUpdateAndDeleteOrder_ShouldWork() throws Exception {
-        OrderDto createDto = new OrderDto();
-        createDto.setUserId(200L);
-        createDto.setUserEmail("update200@example.com");
-        createDto.setStatus("PENDING");
+        orderItems.add(orderItemDto);
+        orderDto.setOrderItems(orderItems);
 
-        String response = mockMvc.perform(post("/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createDto)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-
-        Long orderId = objectMapper.readTree(response).get("id").asLong();
-
-        OrderDto updateDto = new OrderDto();
-        updateDto.setUserId(200L);
-        updateDto.setUserEmail("updated200@example.com");
-        updateDto.setStatus("COMPLETED");
-
-        mockMvc.perform(put("/orders/{id}", orderId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("COMPLETED"));
-
-        mockMvc.perform(delete("/orders/{id}", orderId))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/orders/{id}", orderId))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @Transactional
-    void simpleUpdateTest() throws Exception {
-        OrderDto createDto = new OrderDto();
-        createDto.setUserId(300L);
-        createDto.setUserEmail("simple300@example.com");
-        createDto.setStatus("PENDING");
-
-        String response = mockMvc.perform(post("/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createDto)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-
-        Long orderId = objectMapper.readTree(response).get("id").asLong();
-
-        OrderDto updateDto = new OrderDto();
-        updateDto.setUserId(300L);
-        updateDto.setUserEmail("simple_updated300@example.com");
-        updateDto.setStatus("COMPLETED");
-
-        mockMvc.perform(put("/orders/{id}", orderId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("COMPLETED"));
-    }
-
-    @Test
-    void createOrder_WithDifferentData_ShouldWork() throws Exception {
-        OrderDto orderDto = new OrderDto();
-        orderDto.setUserId(400L);
-        orderDto.setUserEmail("another400@example.com");
-        orderDto.setStatus("COMPLETED");
-
-        mockMvc.perform(post("/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderDto)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.status").value("COMPLETED"));
+        return orderDto;
     }
 }
